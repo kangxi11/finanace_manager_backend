@@ -19,7 +19,7 @@ app.get("/transactions", (req, res, next) => {
     const docClient = new AWS.DynamoDB.DocumentClient();
 
     const params = {
-        TableName: config.aws_table_name
+        TableName: config.aws_transactions_table_name
     };
 
     docClient.scan(params, function (err, data) {
@@ -48,7 +48,7 @@ app.post('/transactions', (req, res) => {
     
     transactions.transactions.forEach((t) => {
         var params = {
-            TableName: config.aws_table_name,
+            TableName: config.aws_transactions_table_name,
             Item: t
         };
     
@@ -80,7 +80,7 @@ app.delete('/transactions', (req, res) => {
     const transactionId = { ...req.body };    
 
     var params = {
-        TableName: config.aws_table_name,
+        TableName: config.aws_transactions_table_name,
         Key: transactionId
     };
 
@@ -102,8 +102,94 @@ app.delete('/transactions', (req, res) => {
 
 });
 
+app.get("/net-worth", (req, res, next) => {
+    AWS.config.update(config.aws_remote_config);
+    const docClient = new AWS.DynamoDB.DocumentClient();
 
+    const params = {
+        TableName: config.aws_net_worth_table_name
+    };
+
+    docClient.scan(params, function (err, data) {
+
+        if (err) {
+            console.log(err)
+            res.send({
+                success: false,
+                message: err
+            });
+        } else {
+            const { Items } = data;
+            res.send({
+                success: true,
+                items: Items
+            });
+        }
+    });
+});
+
+app.post('/net-worth', (req, res) => {
+    AWS.config.update(config.aws_remote_config);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+    const items = { ...req.body };
+    let successes = 0;
+    
+    items.items.forEach((t) => {
+        var params = {
+            TableName: config.aws_net_worth_table_name,
+            Item: t
+        };
+    
+        // Call DynamoDB to add the item to the table
+        docClient.put(params, function (err, data) {
+            if (err) {
+                res.header("Access-Control-Allow-Origin", "*");
+                res.send({
+                    success: false,
+                    message: err
+                });
+            } else {
+                successes = successes + 1;
+                if (successes === items.items.length) {
+                    res.header("Access-Control-Allow-Origin", "*");
+                    res.send({
+                        success: true,
+                        message: "Added net worth items"
+                    });
+                }
+            }
+        });    
+    });
+});
+
+app.delete('/net-worth', (req, res) => {
+    AWS.config.update(config.aws_remote_config);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+    const itemId = { ...req.body };    
+
+    var params = {
+        TableName: config.aws_net_worth_table_name,
+        Key: itemId
+    };
+
+    // Call DynamoDB to add the item to the table
+    docClient.delete(params, function (err, data) {
+        if (err) {
+            res.send({
+                success: false,
+                message: err
+            });
+        } else {
+            res.send({
+                success: true,
+                message: `Deleted net worth item ${itemId.itemId}`
+            });
+        }
+
+    })
+
+});
 
 app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`)
+    console.log(`Finance manager backend listening on port ${port}`)
 })
